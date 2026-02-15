@@ -1,114 +1,80 @@
-# Blockchain-Based Secure IoT Data Logging Simulation
+# Blockchain-Based Secure IoT Data Logging - merkle-batching
 
 ## Overview
-This project demonstrates how **blockchain technology** can be used to **secure IoT data** by ensuring data integrity, immutability, and transparency.  
-Instead of storing raw IoT sensor data on-chain, the system **hashes sensor readings** and stores only the cryptographic hash on a **local Ethereum blockchain**.
 
-The simulation is implemented using:
-- Solidity smart contracts
-- Ganache (local blockchain)
-- Remix IDE
-- Python (Web3.py)
+This branch demonstrates how blockchain can secure IoT data integrity by hashing sensor records (data + timestamp + device id), aggregating hashes into Merkle trees, and anchoring only the Merkle roots on a local Ethereum chain. Raw IoT data stays off-chain (in data/), while data/batches.json holds the off-chain batch contents needed for verification and proof generation.
+
+---
+## Dataset
+IoT dataset: subset derived from Stratosphere IPS’s IoT-23. Kaggle hosts convenient preprocessed copies.
+
+---
 
 
 ## Project structure
 ```text
 BCsimulation/
 ├── blockchain/
-│   └── LogManager.sol    # Smart contract for data logging
+│   └── LogManager.sol             # contract
+├── data/
+│   ├── iot23_sample.csv           # sample rows 
+│   └── batches.json               #(off-chain batch store)
 ├── python/
-│   └── simulation.py     # IoT data generation script
+│   ├── iot23_merkle_batch.py
+│   └── verify_merkle_and_tamper.py
 ├── report/
-│   └── screenshots/      # Experiment evidence & results
-└── README.md             # Project overview
+│   └── screenshots
+└── README.md  
 ```
 
-
-## Setup & Configuration Guide
-
-### Step 1: Start Ganache (Local Blockchain)
-
-1. Open **Ganache GUI**
-2. Click **Quickstart Ethereum**
-3. Note the following details:
-   - **RPC Server**: `http://127.0.0.1:7545`
-   - **Network ID**: `5777`
-4. Keep Ganache running throughout the experiment
-
-Ganache provides pre-funded Ethereum accounts for testing.
-
 ---
+## Quick summary of the protocol
 
-### Step 2: Deploy Smart Contract Using Remix
+1. Read IoT CSV row → build canonical string
+device_id | timestamp | proto | service | label
 
-1. Open **Remix IDE** in your browser  
-   https://remix.ethereum.org
-2. Create a file:
+2. leaf_hash = keccak256(leaf_text) (32 bytes) — each leaf binds data+time+device
+
+3. Collect BATCH_SIZE leaf_hash values → build Merkle tree (pair concat → keccak)
+
+4. MerkleRoot (top hash) → LogManager.logMerkleRoot(root) (one tx per batch)
+
+5. Save batch metadata off-chain to batches.json:
+
+   batch_index, root (hex), tx hash, gas used, and the textual records[]
+
+6. Verify by recomputing leaf hashes and Merkle root from batches.json and comparing with anchored root. Tamper detection: altered off-chain data → recomputed root ≠ anchored root.
+
+
+## Setup & Configuration is similar to main branch.
+
+
+## Run merkle batching
 ```bash
-LogManager.sol
+python python/iot23_merkle_batch.py
 ```
-3. Paste the smart contract code
-4. Go to **Solidity Compiler**
-- Compiler version: `0.8.x`
-- Click **Compile**
-5. Go to **Deploy & Run Transactions**
-- Environment: **Dev – Ganache Provider**
-- Confirm connection to network ID `5777`
-6. Click **Deploy**
+Reads iot23_sample.csv.
+
+For every BATCH_SIZE records computes root and calls logMerkleRoot(root).
+
+Produces data/batches.json (one entry per committed batch).
 
 ---
-
-### Step 3: Get Contract Address
-
-After deployment:
-
-1. In **Deploy & Run Transactions**
-2. Expand **Deployed Contracts**
-3. Copy the address shown
-4. Paste it in simulation.py
-
-### Step 4: Get Contract ABI
-
-In Remix, open Solidity Compiler
-
-1. Select LogManager.sol
-
-2. Click the ABI button
-
-3. Copy the entire JSON array (starts with [ and ends with ])
-
-4. Paste it in simulation.py
-
----
-
-### Step 5: Install Required Python Libraries
+## Verify and Tampering
 ```bash
-pip install web3 eth-utils
+python python/verify_merkle_and_tamper.py --batch 0 --tamper-csv data/iot23_altered.csv
 ```
 ---
 
-### Step 7: Run the Simulation
-```bash
-cd python
-python simulation.py
-```
+## Output
+### Merkle batching
+![Merkle batching](report/screenshots/merkle_batching.png)
+
+### Tamper Testing
+![Tamper testing](report/screenshots/Tamper_testing.png)
+
 ---
-## Results
 
-### Python Simulation Output
-![Python Simulation Output](report/screenshots/terminaloutput.png)
-
-### Ganache Transaction View
-![Ganache Transactions](report/screenshots/transactions.png)
-
-### Ganache Transaction View
-![Ganache Transactions](report/screenshots/transactions2.png)
-
-### Transaction Details
-![Transaction Detail](report/screenshots/transaction_details.png)
-
-### Smart Contract Events
-![Remix Events](report/screenshots/remix_ide.png)
 
 
 
