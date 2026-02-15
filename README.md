@@ -70,6 +70,9 @@ python python/verify_merkle_and_tamper.py --batch 0 --tamper-csv data/iot23_alte
 ### Merkle batching
 ![Merkle batching](report/screenshots/merkle_batching.png)
 
+### Merkle batching
+![Block](report/screenshots/block.png)
+
 ### Tamper Testing
 ![Tamper testing](report/screenshots/Tamper_testing.png)
 
